@@ -23,10 +23,10 @@ class UserService
         $day = date('d', $expiredAt);
         $today = date('d');
         $lastDay = date('d', strtotime('last day of +0 months'));
-        if ((int) $day >= (int) $today && (int) $day >= (int) $lastDay) {
+        if ((int)$day >= (int)$today && (int)$day >= (int)$lastDay) {
             return $lastDay - $today;
         }
-        if ((int) $day >= (int) $today) {
+        if ((int)$day >= (int)$today) {
             return $day - $today;
         }
 
@@ -36,7 +36,7 @@ class UserService
     private function calcResetDayByYearFirstDay(): int
     {
         $nextYear = strtotime(date("Y-01-01", strtotime('+1 year')));
-        return (int) (($nextYear - time()) / 86400);
+        return (int)(($nextYear - time()) / 86400);
     }
 
     private function calcResetDayByYearExpiredAt(int $expiredAt): int
@@ -45,25 +45,23 @@ class UserService
         $nowYear = strtotime(date("Y-{$md}"));
         $nextYear = strtotime('+1 year', $nowYear);
         if ($nowYear > time()) {
-            return (int) (($nowYear - time()) / 86400);
+            return (int)(($nowYear - time()) / 86400);
         }
-        return (int) (($nextYear - time()) / 86400);
+        return (int)(($nextYear - time()) / 86400);
     }
 
     public function getResetDay(User $user)
     {
-        if (!isset ($user->plan)) {
+        if (!isset($user->plan)) {
             $user->plan = Plan::find($user->plan_id);
         }
-        if ($user->expired_at <= time() || $user->expired_at === NULL)
-            return null;
+        if ($user->expired_at <= time() || $user->expired_at === NULL) return null;
         // if reset method is not reset
-        if ($user->plan->reset_traffic_method === 2)
-            return null;
+        if ($user->plan->reset_traffic_method === 2) return null;
         switch (true) {
             case ($user->plan->reset_traffic_method === NULL): {
                 $resetTrafficMethod = config('v2board.reset_traffic_method', 0);
-                switch ((int) $resetTrafficMethod) {
+                switch ((int)$resetTrafficMethod) {
                     // month first day
                     case 0:
                         return $this->calcResetDayByMonthFirstDay();
@@ -127,9 +125,9 @@ class UserService
                 ->orWhere('expired_at', 0);
         })
             ->where(function ($query) {
-                $query->where('plan_id', NULL)
-                    ->orWhere('transfer_enable', 0);
-            })
+            $query->where('plan_id', NULL)
+                ->orWhere('transfer_enable', 0);
+        })
             ->get();
     }
 
@@ -143,7 +141,7 @@ class UserService
         return User::all();
     }
 
-    public function addBalance(int $userId, int $balance): bool
+    public function addBalance(int $userId, int $balance):bool
     {
         $user = User::lockForUpdate()->find($userId);
         if (!$user) {
@@ -159,7 +157,7 @@ class UserService
         return true;
     }
 
-    public function isNotCompleteOrderByUserId(int $userId): bool
+    public function isNotCompleteOrderByUserId(int $userId):bool
     {
         $order = Order::whereIn('status', [0, 1])
             ->where('user_id', $userId)
@@ -172,19 +170,8 @@ class UserService
 
     public function trafficFetch(array $server, string $protocol, array $data)
     {
-        //$statService = new StatisticalService();
-        //$statService->setStartAt(strtotime(date('Y-m-d')));
-        //$statService->setUserStats();
-        //$statService->setServerStats();
-        foreach (array_keys($data) as $userId) {
-            $u = $data[$userId][0];
-            $d = $data[$userId][1];
-            StatServerJob::dispatch($u, $d, $server, $protocol, 'd');
-            //StatUserJob::dispatch($u, $d, $userId, $server, $protocol, 'd');
-            TrafficFetchJob::dispatch($u, $d, $userId, $server, $protocol);
-            //$statService->statServer($server['id'], $protocol, $u, $d);
-            //$statService->statUser($server['rate'], $userId, $u, $d);
-        }
+        TrafficFetchJob::dispatch($data, $server, $protocol);
         StatUserJob::dispatch($data, $server, $protocol, 'd');
+        StatServerJob::dispatch($data, $server, $protocol, 'd');
     }
 }
